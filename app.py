@@ -233,21 +233,34 @@ if "messages" not in st.session_state:
 if "ingested_files" not in st.session_state:
     st.session_state.ingested_files = set()
 
+if "uploader_key" not in st.session_state:
+    st.session_state.uploader_key = 0
+
 with st.sidebar:
     render_conversation_sidebar(history_store, st.session_state.conversation_id)
     st.divider()
     st.header("Documents")
     uploaded_files = st.file_uploader(
-        "Upload documents", type=["txt", "md", "pdf"], accept_multiple_files=True
+        "Upload documents",
+        type=["txt", "md", "pdf"],
+        accept_multiple_files=True,
+        key=f"file_uploader_{st.session_state.uploader_key}",
     )
     if uploaded_files:
+        ingested_any = False
         for uploaded_file in uploaded_files:
             if uploaded_file.name in st.session_state.ingested_files:
                 continue
             with st.spinner(f"Ingesting {uploaded_file.name}..."):
-                added = ingest_uploaded_file(assistant, uploaded_file)
+                ingest_uploaded_file(assistant, uploaded_file)
             st.session_state.ingested_files.add(uploaded_file.name)
-            st.success(f"Added {added} chunks from {uploaded_file.name}")
+            ingested_any = True
+
+        if ingested_any:
+            # give the file_uploader a new key so it resets to empty instead
+            # of continuing to show the just-uploaded file as pending
+            st.session_state.uploader_key += 1
+            st.rerun()
 
     render_uploaded_documents(assistant)
 
