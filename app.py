@@ -41,13 +41,6 @@ def ingest_uploaded_file(assistant: RAGAssistant, uploaded_file) -> int:
         tmp_path.unlink(missing_ok=True)
 
 
-def render_sources(chunks: list[dict]) -> None:
-    with st.expander("Sources"):
-        for chunk in chunks:
-            st.markdown(f"**{chunk['source']}**")
-            st.text(chunk["text"])
-
-
 def render_uploaded_documents(assistant: RAGAssistant) -> None:
     with st.sidebar.expander("Uploaded Documents"):
         sources = assistant.vector_store.list_sources()
@@ -75,11 +68,16 @@ def render_conversation_sidebar(history_store: HistoryStore, conversation_id: in
     conversation = history_store.get_conversation(conversation_id)
     title = (conversation["title"] if conversation else None) or "New conversation"
 
-    title_col, rename_col = st.columns([5, 1])
+    title_col, rename_col = st.columns([6, 1])
     with title_col:
         st.subheader(title)
     with rename_col:
-        if st.button("✏️", key="start_rename_conversation", help="Rename conversation"):
+        if st.button(
+            "✏️",
+            key="start_rename_conversation",
+            help="Rename conversation",
+            type="tertiary",
+        ):
             st.session_state.renaming_conversation = True
 
     if st.session_state.get("renaming_conversation"):
@@ -150,8 +148,6 @@ st.caption("Ask questions grounded in the documents you've uploaded.")
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
-        if message.get("sources"):
-            render_sources(message["sources"])
 
 has_documents = assistant.vector_store.count() > 0
 
@@ -171,8 +167,6 @@ else:
             with st.spinner("Retrieving context and generating an answer..."):
                 answer, chunks = assistant.ask(question)
             st.markdown(answer)
-            if chunks:
-                render_sources(chunks)
 
         history_store.add_message(
             st.session_state.conversation_id, "assistant", answer, sources=chunks
@@ -180,3 +174,5 @@ else:
         st.session_state.messages.append(
             {"role": "assistant", "content": answer, "sources": chunks}
         )
+        # rerun so the sidebar picks up the just-auto-generated conversation title
+        st.rerun()
