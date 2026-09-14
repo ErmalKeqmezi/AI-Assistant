@@ -81,53 +81,60 @@ def render_conversation_sidebar(history_store: HistoryStore, conversation_id: in
     conversations = history_store.list_conversations()
 
     if conversation_id is None:
-        st.caption("New conversation")
+        with st.container(border=True):
+            label_col, rename_col, delete_col = st.columns([4, 1, 1])
+            with label_col:
+                st.markdown("**New conversation**")
 
     for conv in conversations:
         is_active = conv["id"] == conversation_id
         title = conv["title"] or "New conversation"
 
-        label_col, rename_col, delete_col = st.columns([4, 1, 1])
-        with label_col:
-            if is_active:
-                st.markdown(f"**{title}**")
-            elif st.button(
-                title, key=f"switch_conv_{conv['id']}", type="tertiary", use_container_width=True
-            ):
-                switch_to_conversation(history_store, conv["id"])
-        with rename_col:
-            if st.button(
-                "✏️", key=f"rename_conv_{conv['id']}", help="Rename this chat", type="tertiary"
-            ):
-                st.session_state.renaming_conversation_id = conv["id"]
-        with delete_col:
-            if st.button(
-                "🗑️", key=f"delete_conv_{conv['id']}", help="Delete this chat", type="tertiary"
-            ):
-                history_store.delete_conversation(conv["id"])
+        with st.container(border=True):
+            label_col, rename_col, delete_col = st.columns([4, 1, 1])
+            with label_col:
                 if is_active:
-                    start_new_chat()
-                else:
+                    st.markdown(f"**{title}**")
+                elif st.button(
+                    title,
+                    key=f"switch_conv_{conv['id']}",
+                    type="tertiary",
+                    use_container_width=True,
+                ):
+                    switch_to_conversation(history_store, conv["id"])
+            with rename_col:
+                if st.button(
+                    "✏️", key=f"rename_conv_{conv['id']}", help="Rename this chat", type="tertiary"
+                ):
+                    st.session_state.renaming_conversation_id = conv["id"]
+            with delete_col:
+                if st.button(
+                    "🗑️", key=f"delete_conv_{conv['id']}", help="Delete this chat", type="tertiary"
+                ):
+                    history_store.delete_conversation(conv["id"])
+                    if is_active:
+                        start_new_chat()
+                    else:
+                        st.rerun()
+
+            if st.session_state.get("renaming_conversation_id") == conv["id"]:
+                with st.form(f"rename_conversation_form_{conv['id']}"):
+                    new_title = st.text_input("Conversation name", value=title)
+                    save_col, cancel_col = st.columns(2)
+                    with save_col:
+                        save_clicked = st.form_submit_button("Save")
+                    with cancel_col:
+                        cancel_clicked = st.form_submit_button("Cancel")
+
+                if save_clicked:
+                    cleaned = new_title.strip()
+                    if cleaned:
+                        history_store.rename_conversation(conv["id"], cleaned)
+                    st.session_state.renaming_conversation_id = None
                     st.rerun()
-
-        if st.session_state.get("renaming_conversation_id") == conv["id"]:
-            with st.form(f"rename_conversation_form_{conv['id']}"):
-                new_title = st.text_input("Conversation name", value=title)
-                save_col, cancel_col = st.columns(2)
-                with save_col:
-                    save_clicked = st.form_submit_button("Save")
-                with cancel_col:
-                    cancel_clicked = st.form_submit_button("Cancel")
-
-            if save_clicked:
-                cleaned = new_title.strip()
-                if cleaned:
-                    history_store.rename_conversation(conv["id"], cleaned)
-                st.session_state.renaming_conversation_id = None
-                st.rerun()
-            elif cancel_clicked:
-                st.session_state.renaming_conversation_id = None
-                st.rerun()
+                elif cancel_clicked:
+                    st.session_state.renaming_conversation_id = None
+                    st.rerun()
 
 
 assistant = get_assistant()
