@@ -83,18 +83,44 @@ def test_get_messages_respects_limit_and_stays_chronological(tmp_path):
     assert [m["content"] for m in messages] == ["message 3", "message 4"]
 
 
-def test_clear_conversation_deletes_messages_and_conversation(tmp_path):
+def test_delete_conversation_deletes_messages_and_conversation(tmp_path):
     store = make_store(tmp_path)
     conversation_id = store.get_or_create_active_conversation()
     store.add_message(conversation_id, "user", "hello")
 
-    store.clear_conversation(conversation_id)
+    store.delete_conversation(conversation_id)
 
     assert store.get_messages(conversation_id) == []
+    assert store.get_conversation(conversation_id) is None
 
-    # a fresh call should mint a brand-new conversation, not reuse the cleared one
-    new_id = store.get_or_create_active_conversation()
-    assert new_id != conversation_id
+
+def test_list_conversations_empty(tmp_path):
+    store = make_store(tmp_path)
+    assert store.list_conversations() == []
+
+
+def test_list_conversations_returns_most_recent_first(tmp_path):
+    store = make_store(tmp_path)
+    first = store.create_conversation()
+    store.add_message(first, "user", "first chat")
+    second = store.create_conversation()
+    store.add_message(second, "user", "second chat")
+
+    conversations = store.list_conversations()
+
+    assert [c["id"] for c in conversations] == [second, first]
+    assert conversations[0]["title"] == "second chat"
+    assert conversations[1]["title"] == "first chat"
+
+
+def test_list_conversations_does_not_include_deleted_conversation(tmp_path):
+    store = make_store(tmp_path)
+    keep = store.create_conversation()
+    gone = store.create_conversation()
+
+    store.delete_conversation(gone)
+
+    assert [c["id"] for c in store.list_conversations()] == [keep]
 
 
 def test_first_user_message_sets_conversation_title(tmp_path):

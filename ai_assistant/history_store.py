@@ -24,13 +24,9 @@ CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation
 
 
 class HistoryStore:
-    """SQLite-backed storage for conversation history.
-
-    The schema supports multiple conversations, but for now the app only ever
-    uses a single ongoing one: get_or_create_active_conversation() always
-    returns the most recently created conversation, creating one if none
-    exists yet.
-    """
+    """SQLite-backed storage for conversation history, supporting multiple
+    conversations: list_conversations() enumerates all of them, and the caller
+    tracks which one is "active" (e.g. in a UI's session state)."""
 
     def __init__(self, db_path: str):
         self._db_path = db_path
@@ -100,6 +96,17 @@ class HistoryStore:
             return None
         return {"id": row["id"], "created_at": row["created_at"], "title": row["title"]}
 
+    def list_conversations(self) -> list[dict]:
+        """Return all conversations, most recently created first."""
+        with closing(self._connect()) as conn:
+            rows = conn.execute(
+                "SELECT id, created_at, title FROM conversations ORDER BY id DESC"
+            ).fetchall()
+        return [
+            {"id": row["id"], "created_at": row["created_at"], "title": row["title"]}
+            for row in rows
+        ]
+
     def get_messages(self, conversation_id: int, limit: int | None = None) -> list[dict]:
         params: tuple = (conversation_id,)
         if limit is None:
@@ -138,7 +145,7 @@ class HistoryStore:
             )
             conn.commit()
 
-    def clear_conversation(self, conversation_id: int) -> None:
+    def delete_conversation(self, conversation_id: int) -> None:
         """Delete a conversation and all its messages (cascades via foreign key)."""
         with closing(self._connect()) as conn:
             conn.execute("DELETE FROM conversations WHERE id = ?", (conversation_id,))
