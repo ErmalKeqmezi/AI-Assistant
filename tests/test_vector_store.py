@@ -43,3 +43,43 @@ def test_upsert_deduplicates_identical_chunks(tmp_path):
     store.add_chunks(["same chunk"], source="doc.txt")
 
     assert store.count() == 1
+
+
+def test_list_sources_returns_chunk_counts_per_document(tmp_path):
+    store = make_store(tmp_path)
+    store.add_chunks(["a", "b", "c"], source="doc1.txt")
+    store.add_chunks(["d", "e"], source="doc2.txt")
+
+    sources = store.list_sources()
+
+    assert sources == [
+        {"source": "doc1.txt", "chunk_count": 3},
+        {"source": "doc2.txt", "chunk_count": 2},
+    ]
+
+
+def test_list_sources_empty_store_returns_empty_list(tmp_path):
+    store = make_store(tmp_path)
+    assert store.list_sources() == []
+
+
+def test_delete_source_removes_only_that_documents_chunks(tmp_path):
+    store = make_store(tmp_path)
+    store.add_chunks(["a", "b"], source="doc1.txt")
+    store.add_chunks(["c"], source="doc2.txt")
+
+    removed = store.delete_source("doc1.txt")
+
+    assert removed == 2
+    assert store.count() == 1
+    assert store.list_sources() == [{"source": "doc2.txt", "chunk_count": 1}]
+
+
+def test_delete_source_with_unknown_source_is_noop(tmp_path):
+    store = make_store(tmp_path)
+    store.add_chunks(["a"], source="doc1.txt")
+
+    removed = store.delete_source("nonexistent.txt")
+
+    assert removed == 0
+    assert store.count() == 1

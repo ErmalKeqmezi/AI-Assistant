@@ -40,3 +40,26 @@ class VectorStore:
 
     def count(self) -> int:
         return self._collection.count()
+
+    def list_sources(self) -> list[dict]:
+        """Return chunk counts per distinct source, derived from stored chunk metadata."""
+        result = self._collection.get(include=["metadatas"])
+        metadatas = result.get("metadatas") or []
+
+        counts: dict[str, int] = {}
+        for meta in metadatas:
+            source = meta.get("source", "unknown")
+            counts[source] = counts.get(source, 0) + 1
+
+        return [
+            {"source": source, "chunk_count": count}
+            for source, count in sorted(counts.items())
+        ]
+
+    def delete_source(self, source: str) -> int:
+        """Delete all chunks belonging to a source. Returns the number of chunks removed."""
+        existing = self._collection.get(where={"source": source}, include=[])
+        ids = existing.get("ids") or []
+        if ids:
+            self._collection.delete(ids=ids)
+        return len(ids)

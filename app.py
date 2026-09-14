@@ -9,6 +9,8 @@ from ai_assistant.text_splitter import split_text
 
 st.set_page_config(page_title="AI Assistant", page_icon="🤖")
 
+EMPTY_STATE_MESSAGE = "Upload a document in the sidebar before asking a question."
+
 
 @st.cache_resource
 def get_assistant() -> RAGAssistant:
@@ -39,6 +41,25 @@ def render_sources(chunks: list[dict]) -> None:
             st.text(chunk["text"])
 
 
+def render_uploaded_documents(assistant: RAGAssistant) -> None:
+    with st.sidebar.expander("Uploaded Documents"):
+        sources = assistant.vector_store.list_sources()
+        if not sources:
+            st.info(EMPTY_STATE_MESSAGE)
+            return
+
+        for doc in sources:
+            col1, col2 = st.columns([4, 1])
+            with col1:
+                st.markdown(f"**{doc['source']}**")
+                st.caption(f"{doc['chunk_count']} chunk(s)")
+            with col2:
+                if st.button("Remove", key=f"remove_{doc['source']}"):
+                    assistant.vector_store.delete_source(doc["source"])
+                    st.session_state.ingested_files.discard(doc["source"])
+                    st.rerun()
+
+
 assistant = get_assistant()
 
 if "messages" not in st.session_state:
@@ -62,6 +83,8 @@ with st.sidebar:
 
     st.metric("Indexed chunks", assistant.vector_store.count())
 
+    render_uploaded_documents(assistant)
+
     if st.button("Clear conversation"):
         st.session_state.messages = []
         st.rerun()
@@ -78,7 +101,7 @@ for message in st.session_state.messages:
 has_documents = assistant.vector_store.count() > 0
 
 if not has_documents:
-    st.info("Upload a document in the sidebar before asking a question.")
+    st.info(EMPTY_STATE_MESSAGE)
 else:
     question = st.chat_input("Ask a question about your documents")
     if question:
