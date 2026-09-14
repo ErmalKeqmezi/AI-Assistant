@@ -54,7 +54,7 @@ def render_uploaded_documents(assistant: RAGAssistant) -> None:
                 st.markdown(f"**{doc['source']}**")
                 st.caption(f"{doc['chunk_count']} chunk(s)")
             with col2:
-                if st.button("Remove", key=f"remove_{doc['source']}"):
+                if st.button("🗑️", key=f"remove_{doc['source']}", help="Remove this document"):
                     assistant.vector_store.delete_source(doc["source"])
                     st.session_state.ingested_files.discard(doc["source"])
                     st.rerun()
