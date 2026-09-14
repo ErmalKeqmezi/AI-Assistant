@@ -21,27 +21,40 @@ EMPTY_STATE_MESSAGE = "Upload a document in the sidebar before asking a question
 # created with a `key=` argument.
 SIDEBAR_CSS = """
 <style>
+/* "+ New chat": a subtle "elevated" neutral surface, not a saturated accent
+   color - reuses the same near-white tone (rgba(250,250,250,*)) the app's
+   own default button border/text already uses, just at low opacity */
+div[class*="st-key-new_chat"] button {
+    background-color: rgba(250, 250, 250, 0.08) !important;
+    border: 1px solid rgba(250, 250, 250, 0.2) !important;
+    color: rgb(250, 250, 250) !important;
+}
+div[class*="st-key-new_chat"] button:hover {
+    background-color: rgba(250, 250, 250, 0.14) !important;
+    border-color: rgba(250, 250, 250, 0.35) !important;
+    color: rgb(250, 250, 250) !important;
+}
+
 /* Plain list rows: no box, a subtle divider, tight consistent padding */
 div[class*="st-key-convrow-"] {
     border: none !important;
     border-radius: 6px !important;
     padding: 4px 6px !important;
     margin: 0 !important;
-    border-bottom: 1px solid rgba(128, 128, 128, 0.15) !important;
+    border-bottom: 1px solid rgba(250, 250, 250, 0.12) !important;
     transition: background-color 0.15s ease;
 }
 div[class*="st-key-convrow-"]:hover {
-    background-color: rgba(128, 128, 128, 0.08) !important;
+    background-color: rgba(250, 250, 250, 0.08) !important;
 }
 
-/* Active conversation: highlighted background + left accent border */
+/* Active conversation: same subtle elevated fill as "+ New chat" - no
+   colored border, just a slightly lighter background than resting rows */
 div[class*="st-key-convrow-active-"] {
-    background-color: rgba(255, 90, 60, 0.10) !important;
-    border-left: 3px solid rgba(255, 90, 60, 0.65) !important;
-    padding-left: 3px !important;
+    background-color: rgba(250, 250, 250, 0.08) !important;
 }
 div[class*="st-key-convrow-active-"]:hover {
-    background-color: rgba(255, 90, 60, 0.15) !important;
+    background-color: rgba(250, 250, 250, 0.14) !important;
 }
 
 /* Edit/delete icons: hidden until the row is hovered or a control in it has focus */
@@ -60,6 +73,15 @@ div[class*="st-key-switch_conv_"] button,
 div[class*="st-key-switch_conv_"] button > div {
     justify-content: flex-start !important;
     text-align: left !important;
+}
+
+/* Tertiary buttons tint their text with the theme's accent color on
+   hover/focus by default - keep row titles neutral instead */
+div[class*="st-key-switch_conv_"] button:hover,
+div[class*="st-key-switch_conv_"] button:hover > div,
+div[class*="st-key-switch_conv_"] button:focus,
+div[class*="st-key-switch_conv_"] button:focus > div {
+    color: rgb(250, 250, 250) !important;
 }
 </style>
 """
@@ -126,7 +148,7 @@ def start_new_chat() -> None:
 
 
 def render_conversation_sidebar(history_store: HistoryStore, conversation_id: int | None) -> None:
-    if st.button("+ New chat", key="new_chat", type="primary", use_container_width=True):
+    if st.button("+ New chat", key="new_chat", use_container_width=True):
         start_new_chat()
 
     conversations = history_store.list_conversations()
