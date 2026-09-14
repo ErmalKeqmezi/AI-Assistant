@@ -44,18 +44,26 @@ class HistoryStore:
         conn.row_factory = sqlite3.Row
         return conn
 
-    def get_or_create_active_conversation(self) -> int:
+    def get_latest_conversation_id(self) -> int | None:
+        """Return the most recent conversation's id, or None if none exist yet (does not create one)."""
         with closing(self._connect()) as conn:
             row = conn.execute("SELECT id FROM conversations ORDER BY id DESC LIMIT 1").fetchone()
-            if row:
-                return row["id"]
+        return row["id"] if row else None
 
+    def create_conversation(self) -> int:
+        with closing(self._connect()) as conn:
             cursor = conn.execute(
                 "INSERT INTO conversations (created_at, title) VALUES (?, ?)",
                 (_now(), None),
             )
             conn.commit()
             return cursor.lastrowid
+
+    def get_or_create_active_conversation(self) -> int:
+        conversation_id = self.get_latest_conversation_id()
+        if conversation_id is not None:
+            return conversation_id
+        return self.create_conversation()
 
     def add_message(
         self,

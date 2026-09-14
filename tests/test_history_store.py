@@ -5,6 +5,29 @@ def make_store(tmp_path):
     return HistoryStore(db_path=str(tmp_path / "history.db"))
 
 
+def test_get_latest_conversation_id_returns_none_when_empty(tmp_path):
+    store = make_store(tmp_path)
+    assert store.get_latest_conversation_id() is None
+
+
+def test_get_latest_conversation_id_returns_most_recent(tmp_path):
+    store = make_store(tmp_path)
+    store.create_conversation()
+    second = store.create_conversation()
+
+    assert store.get_latest_conversation_id() == second
+
+
+def test_create_conversation_creates_a_new_row_each_time(tmp_path):
+    store = make_store(tmp_path)
+    first = store.create_conversation()
+    second = store.create_conversation()
+
+    assert first != second
+    assert store.get_conversation(first) is not None
+    assert store.get_conversation(second) is not None
+
+
 def test_get_or_create_active_conversation_creates_one_when_none_exists(tmp_path):
     store = make_store(tmp_path)
     conversation_id = store.get_or_create_active_conversation()

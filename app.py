@@ -67,11 +67,15 @@ def render_uploaded_documents(assistant: RAGAssistant) -> None:
                     st.rerun()
 
 
-def render_conversation_title(history_store: HistoryStore, conversation_id: int) -> None:
+def render_conversation_sidebar(history_store: HistoryStore, conversation_id: int | None) -> None:
+    if conversation_id is None:
+        st.subheader("New conversation")
+        return
+
     conversation = history_store.get_conversation(conversation_id)
     title = (conversation["title"] if conversation else None) or "New conversation"
 
-    title_col, rename_col = st.columns([8, 1])
+    title_col, rename_col = st.columns([5, 1])
     with title_col:
         st.subheader(title)
     with rename_col:
@@ -102,15 +106,21 @@ assistant = get_assistant()
 history_store = get_history_store()
 
 if "conversation_id" not in st.session_state:
-    st.session_state.conversation_id = history_store.get_or_create_active_conversation()
+    st.session_state.conversation_id = history_store.get_latest_conversation_id()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = history_store.get_messages(st.session_state.conversation_id)
+    st.session_state.messages = (
+        history_store.get_messages(st.session_state.conversation_id)
+        if st.session_state.conversation_id is not None
+        else []
+    )
 
 if "ingested_files" not in st.session_state:
     st.session_state.ingested_files = set()
 
 with st.sidebar:
+    render_conversation_sidebar(history_store, st.session_state.conversation_id)
+    st.divider()
     st.header("Documents")
     uploaded_files = st.file_uploader(
         "Upload documents", type=["txt", "md", "pdf"], accept_multiple_files=True
@@ -127,16 +137,15 @@ with st.sidebar:
     render_uploaded_documents(assistant)
 
     if st.button("Clear conversation"):
-        history_store.clear_conversation(st.session_state.conversation_id)
-        st.session_state.conversation_id = history_store.get_or_create_active_conversation()
+        if st.session_state.conversation_id is not None:
+            history_store.clear_conversation(st.session_state.conversation_id)
+        st.session_state.conversation_id = None
         st.session_state.messages = []
         st.session_state.renaming_conversation = False
         st.rerun()
 
 st.title("AI Assistant")
 st.caption("Ask questions grounded in the documents you've uploaded.")
-
-render_conversation_title(history_store, st.session_state.conversation_id)
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -151,6 +160,8 @@ if not has_documents:
 else:
     question = st.chat_input("Ask a question about your documents")
     if question:
+        if st.session_state.conversation_id is None:
+            st.session_state.conversation_id = history_store.create_conversation()
         st.session_state.messages.append({"role": "user", "content": question})
         history_store.add_message(st.session_state.conversation_id, "user", question)
         with st.chat_message("user"):
