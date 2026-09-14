@@ -13,6 +13,57 @@ st.set_page_config(page_title="AI Assistant", page_icon="🤖")
 
 EMPTY_STATE_MESSAGE = "Upload a document in the sidebar before asking a question."
 
+# Streamlit centers button label text and boxes every st.container(border=True)
+# identically, with no way to vary that per-widget through the public API - so
+# the chat list's visual hierarchy (primary action vs. plain rows, left-aligned
+# titles, hover-only icons, an active-row accent) is done via scoped CSS here,
+# keyed off the stable `st-key-<key>` classes Streamlit attaches to elements
+# created with a `key=` argument.
+SIDEBAR_CSS = """
+<style>
+/* Plain list rows: no box, a subtle divider, tight consistent padding */
+div[class*="st-key-convrow-"] {
+    border: none !important;
+    border-radius: 6px !important;
+    padding: 4px 6px !important;
+    margin: 0 !important;
+    border-bottom: 1px solid rgba(128, 128, 128, 0.15) !important;
+    transition: background-color 0.15s ease;
+}
+div[class*="st-key-convrow-"]:hover {
+    background-color: rgba(128, 128, 128, 0.08) !important;
+}
+
+/* Active conversation: highlighted background + left accent border */
+div[class*="st-key-convrow-active-"] {
+    background-color: rgba(255, 90, 60, 0.10) !important;
+    border-left: 3px solid rgba(255, 90, 60, 0.65) !important;
+    padding-left: 3px !important;
+}
+div[class*="st-key-convrow-active-"]:hover {
+    background-color: rgba(255, 90, 60, 0.15) !important;
+}
+
+/* Edit/delete icons: hidden until the row is hovered or a control in it has focus */
+div[class*="st-key-convrow-"] div[class*="st-key-icon_"] button {
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+div[class*="st-key-convrow-"]:hover div[class*="st-key-icon_"] button,
+div[class*="st-key-convrow-"]:focus-within div[class*="st-key-icon_"] button {
+    opacity: 1;
+}
+
+/* Streamlit centers button labels by default - force the title left, like the
+   active row's plain (already left-aligned) text */
+div[class*="st-key-switch_conv_"] button,
+div[class*="st-key-switch_conv_"] button > div {
+    justify-content: flex-start !important;
+    text-align: left !important;
+}
+</style>
+"""
+
 
 @st.cache_resource(show_spinner="Starting your assistant...")
 def get_assistant() -> RAGAssistant:
@@ -75,22 +126,21 @@ def start_new_chat() -> None:
 
 
 def render_conversation_sidebar(history_store: HistoryStore, conversation_id: int | None) -> None:
-    if st.button("+ New chat", key="new_chat", use_container_width=True):
+    if st.button("+ New chat", key="new_chat", type="primary", use_container_width=True):
         start_new_chat()
 
     conversations = history_store.list_conversations()
 
     if conversation_id is None:
-        with st.container(border=True):
-            label_col, rename_col, delete_col = st.columns([4, 1, 1])
-            with label_col:
-                st.markdown("**New conversation**")
+        with st.container(key="convrow-placeholder"):
+            st.markdown("**New conversation**")
 
     for conv in conversations:
         is_active = conv["id"] == conversation_id
         title = conv["title"] or "New conversation"
+        row_key = f"convrow-active-{conv['id']}" if is_active else f"convrow-{conv['id']}"
 
-        with st.container(border=True):
+        with st.container(key=row_key):
             label_col, rename_col, delete_col = st.columns([4, 1, 1])
             with label_col:
                 if is_active:
@@ -104,12 +154,18 @@ def render_conversation_sidebar(history_store: HistoryStore, conversation_id: in
                     switch_to_conversation(history_store, conv["id"])
             with rename_col:
                 if st.button(
-                    "✏️", key=f"rename_conv_{conv['id']}", help="Rename this chat", type="tertiary"
+                    "✏️",
+                    key=f"icon_rename_{conv['id']}",
+                    help="Rename this chat",
+                    type="tertiary",
                 ):
                     st.session_state.renaming_conversation_id = conv["id"]
             with delete_col:
                 if st.button(
-                    "🗑️", key=f"delete_conv_{conv['id']}", help="Delete this chat", type="tertiary"
+                    "🗑️",
+                    key=f"icon_delete_{conv['id']}",
+                    help="Delete this chat",
+                    type="tertiary",
                 ):
                     history_store.delete_conversation(conv["id"])
                     if is_active:
@@ -136,6 +192,8 @@ def render_conversation_sidebar(history_store: HistoryStore, conversation_id: in
                     st.session_state.renaming_conversation_id = None
                     st.rerun()
 
+
+st.markdown(SIDEBAR_CSS, unsafe_allow_html=True)
 
 assistant = get_assistant()
 history_store = get_history_store()
