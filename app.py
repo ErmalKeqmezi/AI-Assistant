@@ -3,7 +3,9 @@ from pathlib import Path
 
 import streamlit as st
 
+from ai_assistant.config import Config
 from ai_assistant.document_loader import load_document
+from ai_assistant.history_store import HistoryStore
 from ai_assistant.rag_pipeline import RAGAssistant
 from ai_assistant.text_splitter import split_text
 
@@ -15,6 +17,11 @@ EMPTY_STATE_MESSAGE = "Upload a document in the sidebar before asking a question
 @st.cache_resource
 def get_assistant() -> RAGAssistant:
     return RAGAssistant()
+
+
+@st.cache_resource
+def get_history_store() -> HistoryStore:
+    return HistoryStore(db_path=Config().history_db_path)
 
 
 def ingest_uploaded_file(assistant: RAGAssistant, uploaded_file) -> int:
@@ -60,10 +67,46 @@ def render_uploaded_documents(assistant: RAGAssistant) -> None:
                     st.rerun()
 
 
+def render_conversation_title(history_store: HistoryStore, conversation_id: int) -> None:
+    conversation = history_store.get_conversation(conversation_id)
+    title = (conversation["title"] if conversation else None) or "New conversation"
+
+    title_col, rename_col = st.columns([8, 1])
+    with title_col:
+        st.subheader(title)
+    with rename_col:
+        if st.button("✏️", key="start_rename_conversation", help="Rename conversation"):
+            st.session_state.renaming_conversation = True
+
+    if st.session_state.get("renaming_conversation"):
+        with st.form("rename_conversation_form"):
+            new_title = st.text_input("Conversation name", value=title)
+            save_col, cancel_col = st.columns(2)
+            with save_col:
+                save_clicked = st.form_submit_button("Save")
+            with cancel_col:
+                cancel_clicked = st.form_submit_button("Cancel")
+
+        if save_clicked:
+            cleaned = new_title.strip()
+            if cleaned:
+                history_store.rename_conversation(conversation_id, cleaned)
+            st.session_state.renaming_conversation = False
+            st.rerun()
+        elif cancel_clicked:
+            st.session_state.renaming_conversation = False
+            st.rerun()
+
+
 assistant = get_assistant()
+history_store = get_history_store()
+
+if "conversation_id" not in st.session_state:
+    st.session_state.conversation_id = history_store.get_or_create_active_conversation()
 
 if "messages" not in st.session_state:
-    st.session_state.messages = []
+    st.session_state.messages = history_store.get_messages(st.session_state.conversation_id)
+
 if "ingested_files" not in st.session_state:
     st.session_state.ingested_files = set()
 
@@ -86,11 +129,16 @@ with st.sidebar:
     render_uploaded_documents(assistant)
 
     if st.button("Clear conversation"):
+        history_store.clear_conversation(st.session_state.conversation_id)
+        st.session_state.conversation_id = history_store.get_or_create_active_conversation()
         st.session_state.messages = []
+        st.session_state.renaming_conversation = False
         st.rerun()
 
 st.title("AI Assistant")
 st.caption("Ask questions grounded in the documents you've uploaded.")
+
+render_conversation_title(history_store, st.session_state.conversation_id)
 
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
@@ -106,6 +154,7 @@ else:
     question = st.chat_input("Ask a question about your documents")
     if question:
         st.session_state.messages.append({"role": "user", "content": question})
+        history_store.add_message(st.session_state.conversation_id, "user", question)
         with st.chat_message("user"):
             st.markdown(question)
 
@@ -116,6 +165,9 @@ else:
             if chunks:
                 render_sources(chunks)
 
+        history_store.add_message(
+            st.session_state.conversation_id, "assistant", answer, sources=chunks
+        )
         st.session_state.messages.append(
             {"role": "assistant", "content": answer, "sources": chunks}
         )

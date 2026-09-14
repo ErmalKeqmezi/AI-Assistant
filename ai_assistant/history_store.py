@@ -122,6 +122,14 @@ class HistoryStore:
             for row in rows
         ]
 
+    def rename_conversation(self, conversation_id: int, title: str) -> None:
+        with closing(self._connect()) as conn:
+            conn.execute(
+                "UPDATE conversations SET title = ? WHERE id = ?",
+                (title, conversation_id),
+            )
+            conn.commit()
+
     def clear_conversation(self, conversation_id: int) -> None:
         """Delete a conversation and all its messages (cascades via foreign key)."""
         with closing(self._connect()) as conn:

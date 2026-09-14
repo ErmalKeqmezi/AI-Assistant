@@ -123,6 +123,22 @@ def test_get_conversation_returns_none_for_unknown_id(tmp_path):
     assert store.get_conversation(999) is None
 
 
+def test_rename_conversation_updates_title(tmp_path):
+    store = make_store(tmp_path)
+    conversation_id = store.get_or_create_active_conversation()
+    store.add_message(conversation_id, "user", "auto-generated title")
+
+    store.rename_conversation(conversation_id, "My custom title")
+
+    assert store.get_conversation(conversation_id)["title"] == "My custom title"
+
+
+def test_rename_conversation_on_unknown_id_is_noop(tmp_path):
+    store = make_store(tmp_path)
+    store.rename_conversation(999, "does not exist")  # should not raise
+    assert store.get_conversation(999) is None
+
+
 def test_messages_persist_across_store_instances(tmp_path):
     db_path = str(tmp_path / "history.db")
     store1 = HistoryStore(db_path=db_path)

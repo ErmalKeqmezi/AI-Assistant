@@ -13,6 +13,7 @@ class Config:
     embedding_model: str = os.getenv("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
     chroma_persist_dir: str = os.getenv("CHROMA_PERSIST_DIR", "./chroma_db")
     chroma_collection: str = os.getenv("CHROMA_COLLECTION", "documents")
+    history_db_path: str = os.getenv("HISTORY_DB_PATH", "./conversation_history.db")
     chunk_size: int = int(os.getenv("CHUNK_SIZE", "800"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "150"))
     top_k: int = int(os.getenv("TOP_K", "4"))
