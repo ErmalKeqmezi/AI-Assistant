@@ -14,12 +14,12 @@ st.set_page_config(page_title="AI Assistant", page_icon="🤖")
 EMPTY_STATE_MESSAGE = "Upload a document in the sidebar before asking a question."
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Starting your assistant...")
 def get_assistant() -> RAGAssistant:
     return RAGAssistant()
 
 
-@st.cache_resource
+@st.cache_resource(show_spinner="Starting your assistant...")
 def get_history_store() -> HistoryStore:
     return HistoryStore(db_path=Config().history_db_path)
 
@@ -123,8 +123,6 @@ with st.sidebar:
                 added = ingest_uploaded_file(assistant, uploaded_file)
             st.session_state.ingested_files.add(uploaded_file.name)
             st.success(f"Added {added} chunks from {uploaded_file.name}")
-
-    st.metric("Indexed chunks", assistant.vector_store.count())
 
     render_uploaded_documents(assistant)
 
