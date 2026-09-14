@@ -63,14 +63,14 @@ def render_uploaded_documents(assistant: RAGAssistant) -> None:
 def switch_to_conversation(history_store: HistoryStore, conversation_id: int) -> None:
     st.session_state.conversation_id = conversation_id
     st.session_state.messages = history_store.get_messages(conversation_id)
-    st.session_state.renaming_conversation = False
+    st.session_state.renaming_conversation_id = None
     st.rerun()
 
 
 def start_new_chat() -> None:
     st.session_state.conversation_id = None
     st.session_state.messages = []
-    st.session_state.renaming_conversation = False
+    st.session_state.renaming_conversation_id = None
     st.rerun()
 
 
@@ -87,24 +87,19 @@ def render_conversation_sidebar(history_store: HistoryStore, conversation_id: in
         is_active = conv["id"] == conversation_id
         title = conv["title"] or "New conversation"
 
-        if is_active:
-            label_col, rename_col, delete_col = st.columns([5, 1, 1])
-            with label_col:
+        label_col, rename_col, delete_col = st.columns([4, 1, 1])
+        with label_col:
+            if is_active:
                 st.markdown(f"**{title}**")
-            with rename_col:
-                if st.button(
-                    "✏️",
-                    key="start_rename_conversation",
-                    help="Rename conversation",
-                    type="tertiary",
-                ):
-                    st.session_state.renaming_conversation = True
-        else:
-            label_col, delete_col = st.columns([6, 1])
-            with label_col:
-                if st.button(title, key=f"switch_conv_{conv['id']}", use_container_width=True):
-                    switch_to_conversation(history_store, conv["id"])
-
+            elif st.button(
+                title, key=f"switch_conv_{conv['id']}", type="tertiary", use_container_width=True
+            ):
+                switch_to_conversation(history_store, conv["id"])
+        with rename_col:
+            if st.button(
+                "✏️", key=f"rename_conv_{conv['id']}", help="Rename this chat", type="tertiary"
+            ):
+                st.session_state.renaming_conversation_id = conv["id"]
         with delete_col:
             if st.button(
                 "🗑️", key=f"delete_conv_{conv['id']}", help="Delete this chat", type="tertiary"
@@ -115,27 +110,24 @@ def render_conversation_sidebar(history_store: HistoryStore, conversation_id: in
                 else:
                     st.rerun()
 
-    if st.session_state.get("renaming_conversation") and conversation_id is not None:
-        current_title = next(
-            (c["title"] for c in conversations if c["id"] == conversation_id), None
-        ) or "New conversation"
-        with st.form("rename_conversation_form"):
-            new_title = st.text_input("Conversation name", value=current_title)
-            save_col, cancel_col = st.columns(2)
-            with save_col:
-                save_clicked = st.form_submit_button("Save")
-            with cancel_col:
-                cancel_clicked = st.form_submit_button("Cancel")
+        if st.session_state.get("renaming_conversation_id") == conv["id"]:
+            with st.form(f"rename_conversation_form_{conv['id']}"):
+                new_title = st.text_input("Conversation name", value=title)
+                save_col, cancel_col = st.columns(2)
+                with save_col:
+                    save_clicked = st.form_submit_button("Save")
+                with cancel_col:
+                    cancel_clicked = st.form_submit_button("Cancel")
 
-        if save_clicked:
-            cleaned = new_title.strip()
-            if cleaned:
-                history_store.rename_conversation(conversation_id, cleaned)
-            st.session_state.renaming_conversation = False
-            st.rerun()
-        elif cancel_clicked:
-            st.session_state.renaming_conversation = False
-            st.rerun()
+            if save_clicked:
+                cleaned = new_title.strip()
+                if cleaned:
+                    history_store.rename_conversation(conv["id"], cleaned)
+                st.session_state.renaming_conversation_id = None
+                st.rerun()
+            elif cancel_clicked:
+                st.session_state.renaming_conversation_id = None
+                st.rerun()
 
 
 assistant = get_assistant()
