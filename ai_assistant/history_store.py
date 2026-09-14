@@ -71,8 +71,26 @@ class HistoryStore:
                 "VALUES (?, ?, ?, ?, ?)",
                 (conversation_id, role, content, sources_json, _now()),
             )
+            if role == "user":
+                # only fills the title in the first time (title IS NULL); later
+                # user messages don't overwrite it
+                conn.execute(
+                    "UPDATE conversations SET title = ? WHERE id = ? AND title IS NULL",
+                    (_generate_title(content), conversation_id),
+                )
             conn.commit()
             return cursor.lastrowid
+
+    def get_conversation(self, conversation_id: int) -> dict | None:
+        with closing(self._connect()) as conn:
+            row = conn.execute(
+                "SELECT id, created_at, title FROM conversations WHERE id = ?",
+                (conversation_id,),
+            ).fetchone()
+
+        if row is None:
+            return None
+        return {"id": row["id"], "created_at": row["created_at"], "title": row["title"]}
 
     def get_messages(self, conversation_id: int, limit: int | None = None) -> list[dict]:
         params: tuple = (conversation_id,)
@@ -113,3 +131,12 @@ class HistoryStore:
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _generate_title(content: str, max_length: int = 60) -> str:
+    text = " ".join(content.split())
+    if len(text) <= max_length:
+        return text
+
+    truncated = text[:max_length].rsplit(" ", 1)[0] or text[:max_length]
+    return f"{truncated}…"

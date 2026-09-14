@@ -74,6 +74,55 @@ def test_clear_conversation_deletes_messages_and_conversation(tmp_path):
     assert new_id != conversation_id
 
 
+def test_first_user_message_sets_conversation_title(tmp_path):
+    store = make_store(tmp_path)
+    conversation_id = store.get_or_create_active_conversation()
+
+    store.add_message(conversation_id, "user", "What does this project do?")
+
+    conversation = store.get_conversation(conversation_id)
+    assert conversation["title"] == "What does this project do?"
+
+
+def test_later_user_messages_do_not_overwrite_title(tmp_path):
+    store = make_store(tmp_path)
+    conversation_id = store.get_or_create_active_conversation()
+
+    store.add_message(conversation_id, "user", "first question")
+    store.add_message(conversation_id, "assistant", "an answer")
+    store.add_message(conversation_id, "user", "second question")
+
+    conversation = store.get_conversation(conversation_id)
+    assert conversation["title"] == "first question"
+
+
+def test_long_first_message_title_is_truncated_at_word_boundary(tmp_path):
+    store = make_store(tmp_path)
+    conversation_id = store.get_or_create_active_conversation()
+
+    long_message = "explain how the retrieval augmented generation pipeline chunks and embeds documents before indexing them"
+    store.add_message(conversation_id, "user", long_message)
+
+    title = store.get_conversation(conversation_id)["title"]
+    assert len(title) <= 61  # max_length + ellipsis
+    assert title.endswith("…")
+    assert not title[:-1].endswith(" ")  # no dangling space before the ellipsis
+
+
+def test_assistant_only_conversation_has_no_title(tmp_path):
+    store = make_store(tmp_path)
+    conversation_id = store.get_or_create_active_conversation()
+
+    store.add_message(conversation_id, "assistant", "unsolicited answer")
+
+    assert store.get_conversation(conversation_id)["title"] is None
+
+
+def test_get_conversation_returns_none_for_unknown_id(tmp_path):
+    store = make_store(tmp_path)
+    assert store.get_conversation(999) is None
+
+
 def test_messages_persist_across_store_instances(tmp_path):
     db_path = str(tmp_path / "history.db")
     store1 = HistoryStore(db_path=db_path)
