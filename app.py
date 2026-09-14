@@ -61,6 +61,12 @@ def render_uploaded_documents(assistant: RAGAssistant) -> None:
 
 
 def render_conversation_sidebar(history_store: HistoryStore, conversation_id: int | None) -> None:
+    if st.button("+ New chat", key="new_chat", use_container_width=True):
+        st.session_state.conversation_id = None
+        st.session_state.messages = []
+        st.session_state.renaming_conversation = False
+        st.rerun()
+
     if conversation_id is None:
         st.subheader("New conversation")
         return
@@ -133,14 +139,6 @@ with st.sidebar:
             st.success(f"Added {added} chunks from {uploaded_file.name}")
 
     render_uploaded_documents(assistant)
-
-    if st.button("Clear conversation"):
-        if st.session_state.conversation_id is not None:
-            history_store.clear_conversation(st.session_state.conversation_id)
-        st.session_state.conversation_id = None
-        st.session_state.messages = []
-        st.session_state.renaming_conversation = False
-        st.rerun()
 
 st.title("AI Assistant")
 st.caption("Ask questions grounded in the documents you've uploaded.")
