@@ -44,6 +44,28 @@ Start an interactive chat session:
 python main.py chat
 ```
 
+## Streamlit UI
+
+A browser-based alternative to the CLI, backed by the same `ai_assistant` package
+(document loading, chunking, vector store, and RAG pipeline — no logic is duplicated).
+
+```bash
+streamlit run app.py
+```
+
+This opens a chat interface where you can:
+
+- Upload `.txt` / `.md` / `.pdf` files from the sidebar, which are chunked and
+  indexed into the same persistent ChromaDB collection used by the CLI.
+- See how many chunks are currently indexed.
+- Ask questions in a chat box; each answer shows a spinner while retrieval and
+  generation run, and an expandable **Sources** section listing the chunks used.
+- Clear the on-screen conversation with the sidebar button (this only resets the
+  chat history — indexed documents stay in the vector store).
+
+If no documents have been indexed yet, the app prompts you to upload one instead
+of letting you ask a question.
+
 ## Configuration
 
 All settings are read from environment variables (see `.env.example`):
@@ -62,6 +84,7 @@ All settings are read from environment variables (see `.env.example`):
 ## Project layout
 
 ```
+app.py                  # Streamlit UI
 ai_assistant/
 ├── config.py          # env-based configuration
 ├── document_loader.py # loads .txt/.md/.pdf files
