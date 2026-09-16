@@ -99,3 +99,9 @@ ai_assistant/
 ```bash
 pytest
 ```
+
+Author
+Ermal Keqmezi Junior Software Developer & AI Engineer
+
+License
+This project is available for educational and portfolio purposes.
