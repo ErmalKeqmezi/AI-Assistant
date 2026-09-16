@@ -103,7 +103,7 @@ pytest
 ## Author
 
 **Ermal Keqmezi**
-Junior Software Developer & AI Engineer
+Software Developer & AI Engineer
 
 ## License
 
