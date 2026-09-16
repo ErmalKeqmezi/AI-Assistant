@@ -100,8 +100,11 @@ ai_assistant/
 pytest
 ```
 
-Author
-Ermal Keqmezi Junior Software Developer & AI Engineer
+## Author
 
-License
+**Ermal Keqmezi**
+Junior Software Developer & AI Engineer
+
+## License
+
 This project is available for educational and portfolio purposes.
